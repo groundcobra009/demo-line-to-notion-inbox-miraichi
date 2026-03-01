@@ -1,0 +1,131 @@
+name: Deploy to Google Apps Script
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # 手動実行を許可
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # セキュリティ: package.json がない場合のために条件分岐
+      - name: Install dependencies (if package.json exists)
+        run: |
+          if [ -f package.json ]; then
+            npm ci
+          fi
+
+      - name: Install clasp globally
+        run: npm install -g @google/clasp
+
+      # セキュリティ: clasprc.json は機密情報を含むため、必ずGitHub Secretsから取得
+      # CLASPRC_JSON_BASE64 には clasp login で生成される ~/.clasprc.json をbase64エンコードした内容を保存
+      - name: Setup clasp credentials
+        run: |
+          echo "Debug: Checking CLASPRC_JSON_BASE64 secret..."
+          if [ -z "${{ secrets.CLASPRC_JSON_BASE64 }}" ]; then
+            echo "Error: CLASPRC_JSON_BASE64 secret is not set"
+            exit 1
+          fi
+          echo "Debug: Decoding base64..."
+          echo "${{ secrets.CLASPRC_JSON_BASE64 }}" | tr -d '\n' | base64 -d > ~/.clasprc.json
+          chmod 600 ~/.clasprc.json
+          echo "Debug: Validating JSON format..."
+          if ! jq empty ~/.clasprc.json 2>/dev/null; then
+            echo "Error: ~/.clasprc.json is not valid JSON"
+            cat ~/.clasprc.json
+            exit 1
+          fi
+          echo "✓ clasprc.json is valid"
+
+      # セキュリティ: .clasp.json にスクリプトIDが含まれる
+      # CLASP_JSON シークレットが設定されている場合はそちらを優先
+      # リポジトリの .clasp.json がない場合、または scriptId が空の場合にも対応
+      - name: Setup .clasp.json
+        run: |
+          if [ -n '${{ secrets.CLASP_JSON }}' ]; then
+            echo "Using .clasp.json from CLASP_JSON secret"
+            echo '${{ secrets.CLASP_JSON }}' > .clasp.json
+          elif [ -f .clasp.json ]; then
+            SCRIPT_ID=$(jq -r '.scriptId // ""' .clasp.json)
+            if [ -z "$SCRIPT_ID" ]; then
+              echo "Error: .clasp.json exists but scriptId is empty. Set CLASP_JSON secret with a valid scriptId."
+              exit 1
+            fi
+            echo "Using .clasp.json from repository"
+          else
+            echo "Error: .clasp.json not found and CLASP_JSON secret is not set"
+            exit 1
+          fi
+
+      # デプロイ前の検証
+      - name: Validate clasp configuration
+        run: |
+          if [ ! -f .clasp.json ]; then
+            echo "Error: .clasp.json not found"
+            exit 1
+          fi
+          SCRIPT_ID=$(jq -r '.scriptId // ""' .clasp.json)
+          if [ -z "$SCRIPT_ID" ]; then
+            echo "Error: scriptId is empty in .clasp.json"
+            exit 1
+          fi
+          echo "✓ .clasp.json found with scriptId configured"
+          echo "Debug: ~/.clasprc.json exists: $(test -f ~/.clasprc.json && echo 'yes' || echo 'no')"
+          echo "✓ clasp version: $(clasp --version)"
+
+      # GASへデプロイ
+      - name: Deploy to Google Apps Script
+        run: clasp push --force
+
+      # デプロイ結果の確認（オプション）
+      - name: Verify deployment
+        run: |
+          echo "✓ Deployment completed successfully"
+          clasp version || echo "Note: clasp version command may require additional setup"
+
+      # セキュリティ: 機密情報のクリーンアップ
+      - name: Cleanup credentials
+        if: always()
+        run: |
+          rm -f ~/.clasprc.json
+          rm -f .clasp.json 2>/dev/null || true
+
+      # Discord通知: 成功時
+      - name: Notify Discord on Success
+        if: success()
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set. Skipping notification."
+            exit 0
+          fi
+          curl -H "Content-Type: application/json" \
+            -d "{\"embeds\": [{\"title\": \"✅ GAS デプロイ成功\", \"description\": \"Google Apps Script へのデプロイが完了しました。\", \"color\": 5763719, \"fields\": [{\"name\": \"リポジトリ\", \"value\": \"${{ github.repository }}\", \"inline\": true}, {\"name\": \"ブランチ\", \"value\": \"${{ github.ref_name }}\", \"inline\": true}, {\"name\": \"コミット\", \"value\": \"\`${{ github.sha }}\`\", \"inline\": false}], \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}]}" \
+            "$WEBHOOK_URL"
+
+      # Discord通知: 失敗時
+      - name: Notify Discord on Failure
+        if: failure()
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set. Skipping notification."
+            exit 0
+          fi
+          curl -H "Content-Type: application/json" \
+            -d "{\"embeds\": [{\"title\": \"❌ GAS デプロイ失敗\", \"description\": \"Google Apps Script へのデプロイが失敗しました。\", \"color\": 15548997, \"fields\": [{\"name\": \"リポジトリ\", \"value\": \"${{ github.repository }}\", \"inline\": true}, {\"name\": \"ブランチ\", \"value\": \"${{ github.ref_name }}\", \"inline\": true}, {\"name\": \"コミット\", \"value\": \"\`${{ github.sha }}\`\", \"inline\": false}, {\"name\": \"詳細\", \"value\": \"[ワークフローログを確認](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})\", \"inline\": false}], \"timestamp\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}]}" \
+            "$WEBHOOK_URL"

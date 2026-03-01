@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>ヘルプ</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 20px;
+        margin: 0;
+        color: #202124;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      h2 {
+        font-size: 16px;
+        color: #06C755;
+        border-bottom: 2px solid #06C755;
+        padding-bottom: 8px;
+        margin: 0 0 16px;
+      }
+
+      h3 { font-size: 14px; color: #3c4043; margin: 20px 0 8px; }
+
+      .section {
+        margin-bottom: 16px;
+        padding: 12px 16px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #e8eaed;
+      }
+
+      .section h4 { font-size: 13px; color: #06C755; margin: 0 0 6px; }
+      .section p { margin: 0 0 6px; }
+
+      ol, ul { padding-left: 20px; margin: 8px 0; }
+      li { margin-bottom: 4px; }
+
+      code {
+        background: #e8eaed;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-family: monospace;
+      }
+
+      .flow-diagram {
+        padding: 12px;
+        background: white;
+        border: 1px solid #e8eaed;
+        border-radius: 6px;
+        text-align: center;
+        margin: 8px 0;
+        font-size: 13px;
+        color: #3c4043;
+      }
+
+      .flow-arrow { color: #06C755; font-weight: bold; }
+
+      .tip {
+        background: #e6f9ed;
+        border-left: 3px solid #06C755;
+        padding: 8px 12px;
+        margin: 12px 0;
+        font-size: 12px;
+        border-radius: 0 4px 4px 0;
+      }
+
+      .warning {
+        background: #fef7e0;
+        border-left: 3px solid #f9ab00;
+        padding: 8px 12px;
+        margin: 12px 0;
+        font-size: 12px;
+        border-radius: 0 4px 4px 0;
+      }
+
+      button {
+        padding: 8px 24px;
+        background: #06C755;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+
+      button:hover { background: #05a847; }
+    </style>
+  </head>
+  <body>
+    <h2>LINE to Notion Inbox ヘルプ</h2>
+
+    <div class="section">
+      <h4>仕組み</h4>
+      <div class="flow-diagram">
+        LINE <span class="flow-arrow">&rarr;</span>
+        Webhook <span class="flow-arrow">&rarr;</span>
+        GAS <span class="flow-arrow">&rarr;</span>
+        Notion DB
+      </div>
+      <p>LINEに送信したテキストメッセージが、自動的にNotionデータベースのInboxアイテムとして登録されます。</p>
+    </div>
+
+    <h3>セットアップ手順</h3>
+    <ol>
+      <li><strong>Notion Integration</strong> を作成し、トークンを取得</li>
+      <li>Notionの対象DBまたはページをIntegrationに<strong>共有</strong></li>
+      <li><strong>LINE公式アカウント</strong>を作成し、Messaging APIを有効化</li>
+      <li>このスクリプトの<strong>初期設定ウィザード</strong>で各トークンを登録</li>
+      <li>GASを<strong>ウェブアプリとしてデプロイ</strong></li>
+      <li>デプロイURLをLINE DevelopersのWebhook URLに設定</li>
+    </ol>
+
+    <div class="tip">
+      <strong>Webhook URL:</strong> GASエディタ > デプロイ > 新しいデプロイ > ウェブアプリ > 「自分」で実行/「全員」にアクセス許可
+    </div>
+
+    <div class="warning">
+      <strong>Notion権限:</strong> 使用するDBまたは親ページをIntegrationに「接続（Share）」する必要があります。忘れると404エラー。
+    </div>
+
+    <h3>プロパティ</h3>
+    <div class="section">
+      <h4>必須</h4>
+      <p>タイトルプロパティ（デフォルト: <code>Name</code>）のみ必須。<code>title</code>型である必要があります。</p>
+
+      <h4>オプション（あれば自動セット）</h4>
+      <ul>
+        <li><code>Status</code> (select): "Inbox"</li>
+        <li><code>Source</code> (select): "LINE"</li>
+        <li><code>CapturedAt</code> (date): 受信日時</li>
+        <li><code>LineUserId</code> (rich_text): 送信者ID</li>
+        <li><code>LineMessageId</code> (rich_text): 重複排除用</li>
+        <li><code>RawText</code> (rich_text): 元テキスト全文</li>
+      </ul>
+      <p>プロパティ名はウィザードや設定変更画面でカスタマイズ可能です。</p>
+    </div>
+
+    <h3>トラブルシューティング</h3>
+    <div class="section">
+      <h4>メッセージが登録されない</h4>
+      <ul>
+        <li>Webhook URLが正しく設定されているか確認</li>
+        <li>Notion IntegrationがDBに接続されているか確認</li>
+        <li>ログシートでエラー内容を確認</li>
+      </ul>
+
+      <h4>404エラー</h4>
+      <p>NotionのDB/ページをIntegrationに共有してください。</p>
+
+      <h4>タイトルプロパティ名を変更した場合</h4>
+      <p>「設定変更」> プロパティタブ でタイトルプロパティ名を更新してください。</p>
+    </div>
+
+    <button onclick="google.script.host.close()">閉じる</button>
+  </body>
+</html>

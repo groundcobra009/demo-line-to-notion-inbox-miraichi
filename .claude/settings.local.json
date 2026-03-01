@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/keitaro/Downloads/ui/**)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(tree:*)",
+      "Read(//Users/keitaro/Documents/ハンズオン資料/demo-template-practice-20260118/**)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "WebSearch",
+      "Bash(git restore:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

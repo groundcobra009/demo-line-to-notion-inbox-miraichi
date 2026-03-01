@@ -1,0 +1,29 @@
+# clasp ignore file
+# Files and directories to ignore when pushing to Google Apps Script
+
+# Git
+.git/
+.gitignore
+
+# Node
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Documentation
+docs/
+README.md
+PROJECT_SUMMARY.md
+
+# Cursor AI
+.cursorindexingignore
+.specstory/
+
+# clasp
+.claspignore

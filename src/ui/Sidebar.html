@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>LINE to Notion Inbox</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 0;
+        background: #f8f9fa;
+        color: #202124;
+        font-size: 13px;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #06C755, #2bd96f);
+        color: white;
+        padding: 20px 16px;
+      }
+
+      .header h2 {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      .header .subtitle {
+        font-size: 12px;
+        opacity: 0.85;
+      }
+
+      .status-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        font-size: 11px;
+      }
+
+      .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #34a853;
+      }
+
+      .status-dot.inactive { background: #ea4335; }
+      .status-dot.loading { background: #fbbc04; }
+
+      .section {
+        background: white;
+        margin: 8px;
+        border-radius: 8px;
+        border: 1px solid #e8eaed;
+        overflow: hidden;
+      }
+
+      .section-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #5f6368;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 16px 8px;
+      }
+
+      .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 16px;
+        cursor: pointer;
+        transition: background 0.15s;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+        font-size: 13px;
+        color: #202124;
+        font-family: 'Google Sans', Arial, sans-serif;
+      }
+
+      .menu-item:hover { background: #f1f3f4; }
+
+      .menu-item .icon {
+        width: 20px;
+        text-align: center;
+        font-size: 16px;
+        flex-shrink: 0;
+      }
+
+      .menu-item .label { flex: 1; }
+
+      .menu-item .badge {
+        background: #ea4335;
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 500;
+      }
+
+      .info-card {
+        padding: 12px 16px;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid #f1f3f4;
+        font-size: 12px;
+      }
+
+      .info-row:last-child { border-bottom: none; }
+
+      .info-row .key { color: #5f6368; }
+
+      .info-row .value {
+        font-weight: 500;
+        color: #202124;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .value.masked {
+        font-family: monospace;
+        font-size: 11px;
+        color: #80868b;
+      }
+
+      .footer {
+        padding: 12px 16px;
+        text-align: center;
+        font-size: 11px;
+        color: #80868b;
+      }
+
+      .test-result {
+        margin: 0 8px 8px;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        display: none;
+      }
+
+      .test-result.success { background: #e6f4ea; color: #1e8e3e; display: block; }
+      .test-result.error { background: #fce8e6; color: #d93025; display: block; }
+      .test-result.loading { background: #e6f9ed; color: #06C755; display: block; }
+    </style>
+  </head>
+  <body>
+
+    <div class="header">
+      <h2>LINE to Notion Inbox</h2>
+      <div class="subtitle">LINE メッセージを Notion に自動登録</div>
+      <div class="status-bar">
+        <span id="statusDot" class="status-dot loading"></span>
+        <span id="statusText">読み込み中...</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">操作</div>
+      <button class="menu-item" onclick="runTest()">
+        <span class="icon">&#9654;</span>
+        <span class="label">テスト送信</span>
+      </button>
+      <button class="menu-item" onclick="openLogSheet()">
+        <span class="icon">&#128196;</span>
+        <span class="label">ログシートを開く</span>
+      </button>
+    </div>
+
+    <div id="testResult" class="test-result"></div>
+
+    <div class="section">
+      <div class="section-title">設定</div>
+      <button class="menu-item" onclick="openSetupWizard()">
+        <span class="icon">&#9881;</span>
+        <span class="label">初期設定ウィザード</span>
+        <span id="setupBadge" class="badge" style="display:none;">未設定</span>
+      </button>
+      <button class="menu-item" onclick="openSettingsDialog()">
+        <span class="icon">&#128295;</span>
+        <span class="label">設定変更</span>
+      </button>
+      <button class="menu-item" onclick="openHelp()">
+        <span class="icon">&#10068;</span>
+        <span class="label">ヘルプ</span>
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">接続状況</div>
+      <div class="info-card">
+        <div class="info-row">
+          <span class="key">Notion Token</span>
+          <span id="infoNotionToken" class="value masked">-</span>
+        </div>
+        <div class="info-row">
+          <span class="key">Database ID</span>
+          <span id="infoDatabaseId" class="value masked">-</span>
+        </div>
+        <div class="info-row">
+          <span class="key">Title Property</span>
+          <span id="infoTitleProp" class="value">-</span>
+        </div>
+        <div class="info-row">
+          <span class="key">LINE Secret</span>
+          <span id="infoLineSecret" class="value masked">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">v1.0.0</div>
+
+    <script>
+      google.script.run
+        .withSuccessHandler(function(s) { updateStatusDisplay(s); })
+        .withFailureHandler(function(err) { setStatus('inactive', 'エラー'); })
+        .getAllSettings();
+
+      function updateStatusDisplay(s) {
+        if (s.setupComplete) {
+          setStatus('active', '設定完了');
+        } else {
+          setStatus('inactive', '初期設定が必要です');
+          document.getElementById('setupBadge').style.display = '';
+        }
+        document.getElementById('infoNotionToken').textContent = s.notionToken || '未設定';
+        document.getElementById('infoDatabaseId').textContent = s.notionDatabaseId
+          ? s.notionDatabaseId.substring(0, 8) + '...' : '(自動作成)';
+        document.getElementById('infoTitleProp').textContent = s.titlePropName || 'Name';
+        document.getElementById('infoLineSecret').textContent = s.lineChannelSecret || '未設定';
+      }
+
+      function setStatus(type, text) {
+        var dot = document.getElementById('statusDot');
+        dot.className = 'status-dot' + (type === 'active' ? '' : type === 'inactive' ? ' inactive' : ' loading');
+        document.getElementById('statusText').textContent = text;
+      }
+
+      function openSetupWizard() { google.script.run.showSetupWizard(); }
+      function openSettingsDialog() { google.script.run.showSettingsDialog(); }
+      function openHelp() { google.script.run.showHelpDialog(); }
+
+      function openLogSheet() {
+        google.script.run
+          .withSuccessHandler(function(r) {
+            if (r && r.sheetUrl) window.open(r.sheetUrl, '_blank');
+            else showTestResult('ログシートURLを取得できませんでした', 'error');
+          })
+          .withFailureHandler(function(err) { showTestResult('Error: ' + err.message, 'error'); })
+          .initializeLogSheet();
+      }
+
+      function runTest() {
+        showTestResult('テスト送信中...', 'loading');
+        google.script.run
+          .withSuccessHandler(function() {
+            showTestResult('テスト完了。Notion DBとログシートを確認してください。', 'success');
+            google.script.run.withSuccessHandler(updateStatusDisplay).getAllSettings();
+          })
+          .withFailureHandler(function(err) { showTestResult('テスト失敗: ' + err.message, 'error'); })
+          .testDoPost();
+      }
+
+      function showTestResult(msg, type) {
+        var el = document.getElementById('testResult');
+        el.textContent = msg;
+        el.className = 'test-result ' + type;
+      }
+    </script>
+  </body>
+</html>

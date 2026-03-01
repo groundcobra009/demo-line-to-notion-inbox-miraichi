@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>設定変更</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 20px;
+        margin: 0;
+        color: #202124;
+        font-size: 13px;
+      }
+
+      h2 {
+        font-size: 16px;
+        color: #06C755;
+        border-bottom: 2px solid #06C755;
+        padding-bottom: 8px;
+        margin: 0 0 16px;
+      }
+
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid #e8eaed;
+        margin-bottom: 16px;
+      }
+
+      .tab {
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #5f6368;
+        border-bottom: 2px solid transparent;
+        transition: all 0.15s;
+        background: none;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+      }
+
+      .tab:hover { color: #06C755; }
+      .tab.active { color: #06C755; border-bottom-color: #06C755; font-weight: 500; }
+
+      .tab-content { display: none; }
+      .tab-content.active { display: block; }
+
+      .field { margin-bottom: 12px; }
+
+      .field label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 3px;
+        font-size: 12px;
+        color: #3c4043;
+      }
+
+      .field-row { display: flex; gap: 6px; align-items: center; }
+
+      .field input {
+        flex: 1;
+        padding: 7px 10px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: monospace;
+      }
+
+      .field input:focus { outline: none; border-color: #06C755; box-shadow: 0 0 0 2px rgba(6,199,85,0.15); }
+
+      .field .hint { font-size: 11px; color: #80868b; margin-top: 2px; }
+
+      .btn-save {
+        padding: 6px 14px;
+        background: #06C755;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .btn-save:hover { background: #05a847; }
+
+      .saved-indicator {
+        font-size: 11px;
+        color: #1e8e3e;
+        display: none;
+        margin-left: 4px;
+      }
+
+      .saved-indicator.show { display: inline; }
+
+      .button-group {
+        margin-top: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .btn-close {
+        padding: 8px 24px;
+        background: white;
+        color: #5f6368;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .btn-close:hover { background: #f1f3f4; }
+
+      .btn-danger {
+        padding: 8px 16px;
+        background: white;
+        color: #d93025;
+        border: 1px solid #d93025;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .btn-danger:hover { background: #fce8e6; }
+    </style>
+  </head>
+  <body>
+    <h2>設定変更</h2>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('notion', this)">Notion</button>
+      <button class="tab" onclick="switchTab('line', this)">LINE</button>
+      <button class="tab" onclick="switchTab('props', this)">プロパティ</button>
+    </div>
+
+    <!-- Notion -->
+    <div id="tab-notion" class="tab-content active">
+      <div class="field">
+        <label>Notion Integration Token</label>
+        <div class="field-row">
+          <input type="password" id="set-notionToken" placeholder="新しいトークンを入力">
+          <button class="btn-save" onclick="saveSetting('NOTION_TOKEN', 'set-notionToken')">保存</button>
+        </div>
+        <span id="saved-NOTION_TOKEN" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>Database ID</label>
+        <div class="field-row">
+          <input type="text" id="set-notionDatabaseId" placeholder="xxxxxxxx-xxxx-...">
+          <button class="btn-save" onclick="saveSetting('NOTION_DATABASE_ID', 'set-notionDatabaseId')">保存</button>
+        </div>
+        <span id="saved-NOTION_DATABASE_ID" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>Parent Page ID (DB自動作成用)</label>
+        <div class="field-row">
+          <input type="text" id="set-notionParentPageId" placeholder="xxxxxxxx-xxxx-...">
+          <button class="btn-save" onclick="saveSetting('NOTION_PARENT_PAGE_ID', 'set-notionParentPageId')">保存</button>
+        </div>
+        <span id="saved-NOTION_PARENT_PAGE_ID" class="saved-indicator">保存しました</span>
+      </div>
+    </div>
+
+    <!-- LINE -->
+    <div id="tab-line" class="tab-content">
+      <div class="field">
+        <label>Channel Secret</label>
+        <div class="field-row">
+          <input type="password" id="set-lineChannelSecret" placeholder="新しいSecretを入力">
+          <button class="btn-save" onclick="saveSetting('LINE_CHANNEL_SECRET', 'set-lineChannelSecret')">保存</button>
+        </div>
+        <span id="saved-LINE_CHANNEL_SECRET" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>Channel Access Token</label>
+        <div class="field-row">
+          <input type="password" id="set-lineAccessToken" placeholder="新しいトークンを入力">
+          <button class="btn-save" onclick="saveSetting('LINE_ACCESS_TOKEN', 'set-lineAccessToken')">保存</button>
+        </div>
+        <span id="saved-LINE_ACCESS_TOKEN" class="saved-indicator">保存しました</span>
+      </div>
+    </div>
+
+    <!-- Property -->
+    <div id="tab-props" class="tab-content">
+      <div class="field">
+        <label>タイトルプロパティ名</label>
+        <div class="field-row">
+          <input type="text" id="set-titleProp" placeholder="Name">
+          <button class="btn-save" onclick="saveSetting('PROP_TITLE_NAME', 'set-titleProp')">保存</button>
+        </div>
+        <span id="saved-PROP_TITLE_NAME" class="saved-indicator">保存しました</span>
+        <div class="hint">DBタイトル列名が変わった場合はここで修正</div>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <div class="field-row">
+          <input type="text" id="set-statusProp" placeholder="Status">
+          <button class="btn-save" onclick="saveSetting('PROP_STATUS_NAME', 'set-statusProp')">保存</button>
+        </div>
+        <span id="saved-PROP_STATUS_NAME" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>Source</label>
+        <div class="field-row">
+          <input type="text" id="set-sourceProp" placeholder="Source">
+          <button class="btn-save" onclick="saveSetting('PROP_SOURCE_NAME', 'set-sourceProp')">保存</button>
+        </div>
+        <span id="saved-PROP_SOURCE_NAME" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>CapturedAt</label>
+        <div class="field-row">
+          <input type="text" id="set-capturedAtProp" placeholder="CapturedAt">
+          <button class="btn-save" onclick="saveSetting('PROP_CAPTURED_AT_NAME', 'set-capturedAtProp')">保存</button>
+        </div>
+        <span id="saved-PROP_CAPTURED_AT_NAME" class="saved-indicator">保存しました</span>
+      </div>
+      <div class="field">
+        <label>LineMessageId</label>
+        <div class="field-row">
+          <input type="text" id="set-lineMessageIdProp" placeholder="LineMessageId">
+          <button class="btn-save" onclick="saveSetting('PROP_LINE_MESSAGE_ID_NAME', 'set-lineMessageIdProp')">保存</button>
+        </div>
+        <span id="saved-PROP_LINE_MESSAGE_ID_NAME" class="saved-indicator">保存しました</span>
+      </div>
+    </div>
+
+    <div class="button-group">
+      <button class="btn-danger" onclick="resetSettings()">全設定リセット</button>
+      <button class="btn-close" onclick="google.script.host.close()">閉じる</button>
+    </div>
+
+    <script>
+      google.script.run
+        .withSuccessHandler(function(s) {
+          document.getElementById('set-notionDatabaseId').value = s.notionDatabaseId || '';
+          document.getElementById('set-notionParentPageId').value = s.notionParentPageId || '';
+          document.getElementById('set-titleProp').value = s.titlePropName || 'Name';
+          document.getElementById('set-statusProp').value = s.statusPropName || 'Status';
+          document.getElementById('set-sourceProp').value = s.sourcePropName || 'Source';
+          document.getElementById('set-capturedAtProp').value = s.capturedAtPropName || 'CapturedAt';
+          document.getElementById('set-lineMessageIdProp').value = s.lineMessageIdPropName || 'LineMessageId';
+        })
+        .getAllSettings();
+
+      function switchTab(name, btn) {
+        document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+        document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('tab-' + name).classList.add('active');
+      }
+
+      function saveSetting(key, inputId) {
+        var value = document.getElementById(inputId).value.trim();
+        if (!value) { alert('値を入力してください。'); return; }
+        google.script.run
+          .withSuccessHandler(function(r) {
+            if (r.success) {
+              var ind = document.getElementById('saved-' + key);
+              ind.classList.add('show');
+              setTimeout(function() { ind.classList.remove('show'); }, 2000);
+            } else { alert('保存失敗: ' + r.error); }
+          })
+          .withFailureHandler(function(err) { alert('Error: ' + err.message); })
+          .updateSetting(key, value);
+      }
+
+      function resetSettings() {
+        if (!confirm('全ての設定をリセットしますか？\nこの操作は取り消せません。')) return;
+        google.script.run
+          .withSuccessHandler(function(r) {
+            if (r.success) { alert('リセット完了。ウィザードを再実行してください。'); google.script.host.close(); }
+            else { alert('リセット失敗: ' + r.error); }
+          })
+          .withFailureHandler(function(err) { alert('Error: ' + err.message); })
+          .resetAllSettings();
+      }
+    </script>
+  </body>
+</html>

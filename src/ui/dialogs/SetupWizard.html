@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <title>初期設定ウィザード</title>
+    <style>
+      * { box-sizing: border-box; }
+
+      body {
+        font-family: 'Google Sans', Arial, sans-serif;
+        padding: 0;
+        margin: 0;
+        color: #202124;
+        font-size: 13px;
+      }
+
+      .wizard-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .step-indicator {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px 20px 12px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #e8eaed;
+      }
+
+      .step-dot {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        background: #e8eaed;
+        color: #80868b;
+        transition: all 0.2s;
+      }
+
+      .step-dot.active { background: #06C755; color: white; }
+      .step-dot.done { background: #34a853; color: white; }
+
+      .step-connector {
+        width: 24px;
+        height: 2px;
+        background: #e8eaed;
+        align-self: center;
+      }
+
+      .step-connector.done { background: #34a853; }
+
+      .step-content {
+        flex: 1;
+        padding: 20px;
+        overflow-y: auto;
+      }
+
+      .step-page { display: none; }
+      .step-page.active { display: block; }
+
+      .step-page h3 {
+        font-size: 16px;
+        color: #06C755;
+        margin-bottom: 4px;
+      }
+
+      .step-page .desc {
+        color: #5f6368;
+        margin-bottom: 16px;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .field { margin-bottom: 14px; }
+
+      .field label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: #3c4043;
+      }
+
+      .field label .required { color: #d93025; margin-left: 2px; }
+      .field label .optional { color: #80868b; font-weight: normal; font-size: 11px; }
+
+      .field input[type="text"],
+      .field input[type="password"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        font-size: 13px;
+        font-family: monospace;
+        transition: border-color 0.15s;
+      }
+
+      .field input:focus {
+        outline: none;
+        border-color: #06C755;
+        box-shadow: 0 0 0 2px rgba(6,199,85,0.15);
+      }
+
+      .field .hint { font-size: 11px; color: #80868b; margin-top: 3px; line-height: 1.4; }
+
+      .field-inline { display: flex; gap: 8px; align-items: flex-end; }
+      .field-inline .field { flex: 1; margin-bottom: 0; }
+
+      .btn-small {
+        padding: 8px 14px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        background: white;
+        color: #06C755;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+
+      .btn-small:hover { background: #f1f3f4; }
+      .btn-small:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .test-result {
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-top: 8px;
+        display: none;
+      }
+
+      .test-result.show { display: block; }
+      .test-result.success { background: #e6f4ea; color: #1e8e3e; }
+      .test-result.error { background: #fce8e6; color: #d93025; }
+      .test-result.loading { background: #e6f9ed; color: #06C755; }
+
+      .section-divider { border: none; border-top: 1px solid #e8eaed; margin: 14px 0; }
+
+      .section-label { font-size: 12px; font-weight: 600; color: #5f6368; margin-bottom: 10px; }
+
+      .collapsible-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #06C755;
+        margin-bottom: 10px;
+        background: none;
+        border: none;
+        padding: 0;
+      }
+
+      .collapsible-toggle .arrow { transition: transform 0.2s; font-size: 10px; }
+      .collapsible-toggle.open .arrow { transform: rotate(90deg); }
+
+      .collapsible-body { display: none; padding-left: 4px; }
+      .collapsible-body.open { display: block; }
+
+      .wizard-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 20px;
+        border-top: 1px solid #e8eaed;
+        background: #f8f9fa;
+      }
+
+      .btn {
+        padding: 8px 24px;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        border: none;
+        font-weight: 500;
+      }
+
+      .btn-primary { background: #06C755; color: white; }
+      .btn-primary:hover { background: #05a847; }
+      .btn-primary:disabled { background: #dadce0; cursor: not-allowed; }
+
+      .btn-secondary { background: white; color: #06C755; border: 1px solid #dadce0; }
+      .btn-secondary:hover { background: #f1f3f4; }
+
+      .btn-text { background: none; color: #5f6368; padding: 8px 12px; }
+      .btn-text:hover { color: #202124; }
+
+      .radio-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+      .radio-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px 12px;
+        border: 1px solid #dadce0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .radio-option:hover { border-color: #06C755; background: #f8f9fa; }
+      .radio-option.selected { border-color: #06C755; background: #e6f9ed; }
+      .radio-option input[type="radio"] { margin-top: 2px; }
+
+      .radio-label strong { display: block; font-size: 13px; margin-bottom: 2px; }
+      .radio-label span { font-size: 11px; color: #5f6368; }
+
+      .complete-icon { text-align: center; font-size: 48px; margin: 20px 0 12px; }
+
+      .complete-title { text-align: center; font-size: 18px; color: #1e8e3e; margin-bottom: 8px; }
+
+      .complete-desc { text-align: center; color: #5f6368; font-size: 13px; line-height: 1.6; }
+
+      .summary-table { width: 100%; margin-top: 16px; font-size: 12px; }
+
+      .summary-table td { padding: 6px 0; border-bottom: 1px solid #f1f3f4; }
+      .summary-table td:first-child { color: #5f6368; width: 120px; }
+      .summary-table td:last-child { font-weight: 500; word-break: break-all; font-family: monospace; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <div class="wizard-container">
+
+      <div class="step-indicator">
+        <div id="dot1" class="step-dot active">1</div>
+        <div id="conn1" class="step-connector"></div>
+        <div id="dot2" class="step-dot">2</div>
+        <div id="conn2" class="step-connector"></div>
+        <div id="dot3" class="step-dot">3</div>
+        <div id="conn3" class="step-connector"></div>
+        <div id="dot4" class="step-dot">4</div>
+      </div>
+
+      <div class="step-content">
+
+        <!-- Step 1: Notion -->
+        <div id="step1" class="step-page active">
+          <h3>Notion API</h3>
+          <p class="desc">Notion IntegrationのトークンとDB設定を入力します。</p>
+
+          <div class="field">
+            <label>Notion Integration Token <span class="required">*</span></label>
+            <input type="password" id="notionToken" placeholder="ntn_xxxxxxxxxxxx...">
+            <div class="hint">Notion > Settings > Integrations > Internal integration で作成</div>
+          </div>
+
+          <hr class="section-divider">
+          <div class="section-label">保存先データベース</div>
+
+          <div class="radio-group">
+            <label class="radio-option selected" onclick="selectDbMode('existing')">
+              <input type="radio" name="dbMode" value="existing" checked>
+              <div class="radio-label">
+                <strong>既存のDBを使う</strong>
+                <span>NotionにあるDBのIDを指定</span>
+              </div>
+            </label>
+            <label class="radio-option" onclick="selectDbMode('auto')">
+              <input type="radio" name="dbMode" value="auto">
+              <div class="radio-label">
+                <strong>自動で新規作成</strong>
+                <span>指定ページ配下にInbox用DBを作成</span>
+              </div>
+            </label>
+          </div>
+
+          <div id="dbExistingFields">
+            <div class="field-inline">
+              <div class="field">
+                <label>Database ID <span class="required">*</span></label>
+                <input type="text" id="notionDatabaseId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+              </div>
+              <button class="btn-small" onclick="testConnection()" id="btnTest">接続テスト</button>
+            </div>
+            <div class="hint" style="margin-top:3px;">DB URL末尾の32文字、またはDB「...」> リンクをコピー</div>
+            <div id="notionTestResult" class="test-result"></div>
+          </div>
+
+          <div id="dbAutoFields" style="display:none;">
+            <div class="field">
+              <label>親ページID <span class="required">*</span></label>
+              <input type="text" id="notionParentPageId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+              <div class="hint">DB作成先のNotionページID（URL末尾32文字）</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: LINE -->
+        <div id="step2" class="step-page">
+          <h3>LINE Messaging API</h3>
+          <p class="desc">LINE Developersコンソールのチャネル情報を入力してください。</p>
+
+          <div class="field">
+            <label>Channel Secret <span class="required">*</span></label>
+            <input type="password" id="lineChannelSecret" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <div class="hint">LINE Developers > チャネル > 基本設定 > Channel secret</div>
+          </div>
+
+          <div class="field">
+            <label>Channel Access Token <span class="optional">(任意)</span></label>
+            <input type="password" id="lineAccessToken" placeholder="長いトークン文字列...">
+            <div class="hint">返信メッセージ送信時に必要。Messaging API設定 > Channel access token</div>
+          </div>
+        </div>
+
+        <!-- Step 3: Property mapping -->
+        <div id="step3" class="step-page">
+          <h3>Notionプロパティ設定</h3>
+          <p class="desc">DBのプロパティ名をカスタマイズできます。デフォルト値のままでもOKです。</p>
+
+          <div class="field">
+            <label>タイトルプロパティ名 <span class="required">*</span></label>
+            <input type="text" id="titlePropName" value="Name">
+            <div class="hint">DBのタイトル列名。LINEメッセージがここに入ります。</div>
+          </div>
+
+          <hr class="section-divider">
+
+          <button class="collapsible-toggle" onclick="toggleAdvanced(this)">
+            <span class="arrow">&#9654;</span>
+            オプションプロパティ名（存在すれば自動セット）
+          </button>
+
+          <div id="advancedProps" class="collapsible-body">
+            <div class="field">
+              <label>Status <span class="optional">(select)</span></label>
+              <input type="text" id="statusPropName" value="Status">
+            </div>
+            <div class="field">
+              <label>Source <span class="optional">(select)</span></label>
+              <input type="text" id="sourcePropName" value="Source">
+            </div>
+            <div class="field">
+              <label>CapturedAt <span class="optional">(date)</span></label>
+              <input type="text" id="capturedAtPropName" value="CapturedAt">
+            </div>
+            <div class="field">
+              <label>LineUserId <span class="optional">(rich_text)</span></label>
+              <input type="text" id="lineUserIdPropName" value="LineUserId">
+            </div>
+            <div class="field">
+              <label>LineMessageId <span class="optional">(rich_text)</span></label>
+              <input type="text" id="lineMessageIdPropName" value="LineMessageId">
+              <div class="hint">重複排除に使用</div>
+            </div>
+            <div class="field">
+              <label>RawText <span class="optional">(rich_text)</span></label>
+              <input type="text" id="rawTextPropName" value="RawText">
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Confirm / Complete -->
+        <div id="step4" class="step-page">
+          <div id="confirmView">
+            <h3>設定の確認</h3>
+            <p class="desc">以下の内容で保存します。問題があれば戻って修正してください。</p>
+
+            <table class="summary-table">
+              <tr><td>Notion Token</td><td id="sumToken">-</td></tr>
+              <tr><td>DB Mode</td><td id="sumDbMode">-</td></tr>
+              <tr><td>DB ID / Parent</td><td id="sumDbId">-</td></tr>
+              <tr><td>LINE Secret</td><td id="sumLineSecret">-</td></tr>
+              <tr><td>Title Property</td><td id="sumTitleProp">-</td></tr>
+            </table>
+          </div>
+
+          <div id="completeView" style="display:none;">
+            <div class="complete-icon">&#9989;</div>
+            <div class="complete-title">設定完了!</div>
+            <div class="complete-desc">
+              Webhook URLをLINE Developersコンソールに設定してください。<br>
+              GAS「デプロイ」>「ウェブアプリ」のURLです。
+            </div>
+          </div>
+
+          <div id="saveResult" class="test-result"></div>
+        </div>
+
+      </div>
+
+      <div class="wizard-footer">
+        <button class="btn btn-text" onclick="google.script.host.close()">後で設定</button>
+        <div>
+          <button id="btnPrev" class="btn btn-secondary" onclick="prevStep()" style="display:none;">戻る</button>
+          <button id="btnNext" class="btn btn-primary" onclick="nextStep()">次へ</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var currentStep = 1;
+      var totalSteps = 4;
+      var dbMode = 'existing';
+      var saved = false;
+
+      google.script.run
+        .withSuccessHandler(function(s) {
+          if (s.notionDatabaseId) document.getElementById('notionDatabaseId').value = s.notionDatabaseId;
+          if (s.notionParentPageId) document.getElementById('notionParentPageId').value = s.notionParentPageId;
+          if (s.titlePropName) document.getElementById('titlePropName').value = s.titlePropName;
+          if (s.statusPropName) document.getElementById('statusPropName').value = s.statusPropName;
+          if (s.sourcePropName) document.getElementById('sourcePropName').value = s.sourcePropName;
+          if (s.capturedAtPropName) document.getElementById('capturedAtPropName').value = s.capturedAtPropName;
+          if (s.lineUserIdPropName) document.getElementById('lineUserIdPropName').value = s.lineUserIdPropName;
+          if (s.lineMessageIdPropName) document.getElementById('lineMessageIdPropName').value = s.lineMessageIdPropName;
+          if (s.rawTextPropName) document.getElementById('rawTextPropName').value = s.rawTextPropName;
+          if (!s.notionDatabaseId && s.notionParentPageId) {
+            selectDbMode('auto');
+            document.querySelector('input[name="dbMode"][value="auto"]').checked = true;
+          }
+        })
+        .getAllSettings();
+
+      function selectDbMode(mode) {
+        dbMode = mode;
+        document.querySelectorAll('.radio-option').forEach(function(el) { el.classList.remove('selected'); });
+        document.querySelector('input[name="dbMode"][value="' + mode + '"]').closest('.radio-option').classList.add('selected');
+        document.getElementById('dbExistingFields').style.display = mode === 'existing' ? '' : 'none';
+        document.getElementById('dbAutoFields').style.display = mode === 'auto' ? '' : 'none';
+      }
+
+      function toggleAdvanced(btn) {
+        btn.classList.toggle('open');
+        document.getElementById('advancedProps').classList.toggle('open');
+      }
+
+      function testConnection() {
+        var token = document.getElementById('notionToken').value.trim();
+        var dbId = document.getElementById('notionDatabaseId').value.trim();
+        var el = document.getElementById('notionTestResult');
+        if (!token) { showResult(el, 'Notion Tokenを入力してください', 'error'); return; }
+        showResult(el, '接続テスト中...', 'loading');
+        document.getElementById('btnTest').disabled = true;
+        google.script.run
+          .withSuccessHandler(function(r) {
+            document.getElementById('btnTest').disabled = false;
+            if (r.success) {
+              var msg = r.message;
+              if (r.dbTitle) msg += ' - "' + r.dbTitle + '"';
+              showResult(el, msg, 'success');
+            } else {
+              showResult(el, r.message, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('btnTest').disabled = false;
+            showResult(el, 'Error: ' + err.message, 'error');
+          })
+          .testNotionConnection(token, dbId);
+      }
+
+      function showResult(el, msg, type) {
+        el.textContent = msg;
+        el.className = 'test-result show ' + type;
+      }
+
+      function validateStep(step) {
+        if (step === 1) {
+          if (!document.getElementById('notionToken').value.trim()) { alert('Notion Integration Token を入力してください。'); return false; }
+          if (dbMode === 'existing' && !document.getElementById('notionDatabaseId').value.trim()) { alert('Database ID を入力してください。'); return false; }
+          if (dbMode === 'auto' && !document.getElementById('notionParentPageId').value.trim()) { alert('親ページID を入力してください。'); return false; }
+        }
+        if (step === 2) {
+          if (!document.getElementById('lineChannelSecret').value.trim()) { alert('LINE Channel Secret を入力してください。'); return false; }
+        }
+        if (step === 3) {
+          if (!document.getElementById('titlePropName').value.trim()) { alert('タイトルプロパティ名を入力してください。'); return false; }
+        }
+        return true;
+      }
+
+      function nextStep() {
+        if (saved) { google.script.host.close(); return; }
+        if (currentStep === totalSteps) { saveSetup(); return; }
+        if (!validateStep(currentStep)) return;
+        if (currentStep === 3) updateSummary();
+        currentStep++;
+        updateUI();
+      }
+
+      function prevStep() {
+        if (currentStep > 1) { currentStep--; updateUI(); }
+      }
+
+      function updateUI() {
+        for (var i = 1; i <= totalSteps; i++) {
+          document.getElementById('step' + i).classList.toggle('active', i === currentStep);
+        }
+        for (var i = 1; i <= totalSteps; i++) {
+          var dot = document.getElementById('dot' + i);
+          dot.className = 'step-dot';
+          if (i < currentStep) dot.classList.add('done');
+          else if (i === currentStep) dot.classList.add('active');
+        }
+        for (var i = 1; i < totalSteps; i++) {
+          document.getElementById('conn' + i).className = 'step-connector' + (i < currentStep ? ' done' : '');
+        }
+        document.getElementById('btnPrev').style.display = currentStep > 1 ? '' : 'none';
+        document.getElementById('btnNext').textContent = currentStep === totalSteps ? '保存する' : '次へ';
+      }
+
+      function updateSummary() {
+        var token = document.getElementById('notionToken').value.trim();
+        document.getElementById('sumToken').textContent = '****' + token.slice(-4);
+        document.getElementById('sumDbMode').textContent = dbMode === 'existing' ? '既存DB' : '自動作成';
+        document.getElementById('sumDbId').textContent = dbMode === 'existing'
+          ? document.getElementById('notionDatabaseId').value.trim()
+          : document.getElementById('notionParentPageId').value.trim();
+        var secret = document.getElementById('lineChannelSecret').value.trim();
+        document.getElementById('sumLineSecret').textContent = '****' + secret.slice(-4);
+        document.getElementById('sumTitleProp').textContent = document.getElementById('titlePropName').value.trim();
+      }
+
+      function saveSetup() {
+        var el = document.getElementById('saveResult');
+        showResult(el, '保存中...', 'loading');
+        document.getElementById('btnNext').disabled = true;
+
+        var settings = {
+          notionToken: document.getElementById('notionToken').value.trim(),
+          lineChannelSecret: document.getElementById('lineChannelSecret').value.trim(),
+          lineAccessToken: document.getElementById('lineAccessToken').value.trim(),
+          titlePropName: document.getElementById('titlePropName').value.trim(),
+          statusPropName: document.getElementById('statusPropName').value.trim(),
+          sourcePropName: document.getElementById('sourcePropName').value.trim(),
+          capturedAtPropName: document.getElementById('capturedAtPropName').value.trim(),
+          lineUserIdPropName: document.getElementById('lineUserIdPropName').value.trim(),
+          lineMessageIdPropName: document.getElementById('lineMessageIdPropName').value.trim(),
+          rawTextPropName: document.getElementById('rawTextPropName').value.trim()
+        };
+
+        if (dbMode === 'existing') {
+          settings.notionDatabaseId = document.getElementById('notionDatabaseId').value.trim();
+        } else {
+          settings.notionParentPageId = document.getElementById('notionParentPageId').value.trim();
+        }
+
+        google.script.run
+          .withSuccessHandler(function(r) {
+            document.getElementById('btnNext').disabled = false;
+            if (r.success) {
+              el.style.display = 'none';
+              document.getElementById('confirmView').style.display = 'none';
+              document.getElementById('completeView').style.display = '';
+              saved = true;
+              document.getElementById('btnNext').textContent = '閉じる';
+              document.getElementById('btnPrev').style.display = 'none';
+              for (var i = 1; i <= totalSteps; i++) document.getElementById('dot' + i).className = 'step-dot done';
+              for (var i = 1; i < totalSteps; i++) document.getElementById('conn' + i).className = 'step-connector done';
+            } else {
+              showResult(el, '保存失敗: ' + r.error, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('btnNext').disabled = false;
+            showResult(el, 'Error: ' + err.message, 'error');
+          })
+          .saveInitialSetup(settings);
+      }
+    </script>
+  </body>
+</html>
