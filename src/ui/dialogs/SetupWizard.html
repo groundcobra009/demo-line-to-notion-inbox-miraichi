@@ -222,6 +222,46 @@
       .summary-table td { padding: 6px 0; border-bottom: 1px solid #f1f3f4; }
       .summary-table td:first-child { color: #5f6368; width: 120px; }
       .summary-table td:last-child { font-weight: 500; word-break: break-all; font-family: monospace; font-size: 11px; }
+
+      /* 設定済みバッジ */
+      .configured-badge {
+        display: inline-block;
+        background: #e6f4ea;
+        color: #1e8e3e;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+      }
+
+      .configured-value {
+        display: block;
+        background: #f8f9fa;
+        border: 1px solid #e8eaed;
+        border-radius: 4px;
+        padding: 8px 10px;
+        font-size: 12px;
+        font-family: monospace;
+        color: #5f6368;
+        margin-bottom: 6px;
+      }
+
+      .btn-change {
+        display: inline-block;
+        font-size: 11px;
+        color: #06C755;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        text-decoration: underline;
+      }
+
+      .btn-change:hover { color: #05a847; }
+
+      .field.configured input { display: none; }
+      .field.configured .hint { display: none; }
     </style>
   </head>
   <body>
@@ -244,7 +284,7 @@
           <h3>Notion API</h3>
           <p class="desc">Notion IntegrationのトークンとDB設定を入力します。</p>
 
-          <div class="field">
+          <div class="field" id="fieldNotionToken">
             <label>Notion Integration Token <span class="required">*</span></label>
             <input type="password" id="notionToken" placeholder="ntn_xxxxxxxxxxxx...">
             <div class="hint">Notion > Settings > Integrations > Internal integration で作成</div>
@@ -274,20 +314,28 @@
             <div class="field-inline">
               <div class="field">
                 <label>Database ID <span class="required">*</span></label>
-                <input type="text" id="notionDatabaseId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+                <input type="text" id="notionDatabaseId" placeholder="ハイフンなし32文字またはUUID形式で入力">
               </div>
               <button class="btn-small" onclick="testConnection()" id="btnTest">接続テスト</button>
             </div>
-            <div class="hint" style="margin-top:3px;">DB URL末尾の32文字、またはDB「...」> リンクをコピー</div>
+            <div class="hint" style="margin-top:3px;">DB URL末尾の32文字をそのまま貼り付けてください（ハイフン不要）</div>
             <div id="notionTestResult" class="test-result"></div>
           </div>
 
           <div id="dbAutoFields" style="display:none;">
-            <div class="field">
-              <label>親ページID <span class="required">*</span></label>
-              <input type="text" id="notionParentPageId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-              <div class="hint">DB作成先のNotionページID（URL末尾32文字）</div>
+            <div class="field-inline">
+              <div class="field">
+                <label>親ページID <span class="required">*</span></label>
+                <input type="text" id="notionParentPageId" placeholder="ハイフンなし32文字またはUUID形式で入力">
+                <div class="hint">DB作成先のNotionページID（URL末尾の32文字をそのまま貼り付け、ハイフン不要）</div>
+              </div>
+              <button class="btn-small" onclick="testParentPage()" id="btnTestParent">接続テスト</button>
             </div>
+            <div id="parentTestResult" class="test-result"></div>
+            <div style="margin-top: 10px;">
+              <button class="btn-small" onclick="createDatabase()" id="btnCreateDb" style="background:#e6f9ed;">DB作成テスト</button>
+            </div>
+            <div id="createDbResult" class="test-result"></div>
           </div>
         </div>
 
@@ -296,13 +344,13 @@
           <h3>LINE Messaging API</h3>
           <p class="desc">LINE Developersコンソールのチャネル情報を入力してください。</p>
 
-          <div class="field">
+          <div class="field" id="fieldLineSecret">
             <label>Channel Secret <span class="required">*</span></label>
             <input type="password" id="lineChannelSecret" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
             <div class="hint">LINE Developers > チャネル > 基本設定 > Channel secret</div>
           </div>
 
-          <div class="field">
+          <div class="field" id="fieldLineToken">
             <label>Channel Access Token <span class="optional">(任意)</span></label>
             <input type="password" id="lineAccessToken" placeholder="長いトークン文字列...">
             <div class="hint">返信メッセージ送信時に必要。Messaging API設定 > Channel access token</div>
@@ -399,9 +447,30 @@
       var totalSteps = 4;
       var dbMode = 'existing';
       var saved = false;
+      var existingSettings = {};
+      var createdDbId = '';
 
+      // 設定読み込み
       google.script.run
         .withSuccessHandler(function(s) {
+          existingSettings = s;
+
+          // 設定済みの場合、マスク表示を適用
+          if (s.setupComplete) {
+            // Notion Token
+            if (s.notionToken) {
+              markAsConfigured('fieldNotionToken', 'notionToken', s.notionToken);
+            }
+            // LINE Channel Secret
+            if (s.lineChannelSecret) {
+              markAsConfigured('fieldLineSecret', 'lineChannelSecret', s.lineChannelSecret);
+            }
+            // LINE Access Token
+            if (s.lineAccessToken) {
+              markAsConfigured('fieldLineToken', 'lineAccessToken', s.lineAccessToken);
+            }
+          }
+
           if (s.notionDatabaseId) document.getElementById('notionDatabaseId').value = s.notionDatabaseId;
           if (s.notionParentPageId) document.getElementById('notionParentPageId').value = s.notionParentPageId;
           if (s.titlePropName) document.getElementById('titlePropName').value = s.titlePropName;
@@ -418,6 +487,48 @@
         })
         .getAllSettings();
 
+      /**
+       * フィールドを「設定済み」マスク表示にする
+       */
+      function markAsConfigured(fieldId, inputId, maskedValue) {
+        var fieldEl = document.getElementById(fieldId);
+        if (!fieldEl) return;
+        fieldEl.classList.add('configured');
+
+        var label = fieldEl.querySelector('label');
+        if (label && !label.querySelector('.configured-badge')) {
+          var badge = document.createElement('span');
+          badge.className = 'configured-badge';
+          badge.textContent = '設定済み';
+          label.appendChild(badge);
+        }
+
+        // マスク値表示
+        var configuredDiv = document.createElement('div');
+        configuredDiv.className = 'configured-value';
+        configuredDiv.textContent = maskedValue;
+        configuredDiv.id = inputId + '_configured';
+
+        var changeBtn = document.createElement('button');
+        changeBtn.className = 'btn-change';
+        changeBtn.textContent = '変更する';
+        changeBtn.onclick = function() {
+          fieldEl.classList.remove('configured');
+          configuredDiv.style.display = 'none';
+          changeBtn.style.display = 'none';
+          var input = document.getElementById(inputId);
+          input.style.display = '';
+          input.value = '';
+          input.focus();
+          var hints = fieldEl.querySelectorAll('.hint');
+          hints.forEach(function(h) { h.style.display = ''; });
+        };
+
+        var input = document.getElementById(inputId);
+        input.parentNode.insertBefore(configuredDiv, input);
+        input.parentNode.insertBefore(changeBtn, input.nextSibling);
+      }
+
       function selectDbMode(mode) {
         dbMode = mode;
         document.querySelectorAll('.radio-option').forEach(function(el) { el.classList.remove('selected'); });
@@ -431,20 +542,35 @@
         document.getElementById('advancedProps').classList.toggle('open');
       }
 
+      /**
+       * トークンを取得（設定済みの場合は空文字 = サーバー側の既存値を使う）
+       */
+      function getEffectiveToken() {
+        var input = document.getElementById('notionToken');
+        var val = input.value.trim();
+        if (val) return val;
+        // 設定済みで変更していない場合は空文字を返す（サーバー側で既存トークン使用）
+        if (existingSettings.setupComplete && existingSettings.notionToken) return '';
+        return '';
+      }
+
       function testConnection() {
-        var token = document.getElementById('notionToken').value.trim();
+        var token = getEffectiveToken();
         var dbId = document.getElementById('notionDatabaseId').value.trim();
         var el = document.getElementById('notionTestResult');
-        if (!token) { showResult(el, 'Notion Tokenを入力してください', 'error'); return; }
+
+        if (!token && !existingSettings.notionToken) {
+          showResult(el, 'Notion Tokenを入力してください', 'error');
+          return;
+        }
+
         showResult(el, '接続テスト中...', 'loading');
         document.getElementById('btnTest').disabled = true;
         google.script.run
           .withSuccessHandler(function(r) {
             document.getElementById('btnTest').disabled = false;
             if (r.success) {
-              var msg = r.message;
-              if (r.dbTitle) msg += ' - "' + r.dbTitle + '"';
-              showResult(el, msg, 'success');
+              showResult(el, r.message, 'success');
             } else {
               showResult(el, r.message, 'error');
             }
@@ -453,7 +579,73 @@
             document.getElementById('btnTest').disabled = false;
             showResult(el, 'Error: ' + err.message, 'error');
           })
-          .testNotionConnection(token, dbId);
+          .testDatabaseConnection(token, dbId);
+      }
+
+      function testParentPage() {
+        var token = getEffectiveToken();
+        var parentId = document.getElementById('notionParentPageId').value.trim();
+        var el = document.getElementById('parentTestResult');
+
+        if (!token && !existingSettings.notionToken) {
+          showResult(el, 'Notion Tokenを入力してください', 'error');
+          return;
+        }
+        if (!parentId) {
+          showResult(el, '親ページIDを入力してください', 'error');
+          return;
+        }
+
+        showResult(el, '親ページ接続テスト中...', 'loading');
+        document.getElementById('btnTestParent').disabled = true;
+        google.script.run
+          .withSuccessHandler(function(r) {
+            document.getElementById('btnTestParent').disabled = false;
+            if (r.success) {
+              showResult(el, r.message, 'success');
+            } else {
+              showResult(el, r.message, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('btnTestParent').disabled = false;
+            showResult(el, 'Error: ' + err.message, 'error');
+          })
+          .testParentPageConnection(token, parentId);
+      }
+
+      function createDatabase() {
+        var token = getEffectiveToken();
+        var parentId = document.getElementById('notionParentPageId').value.trim();
+        var el = document.getElementById('createDbResult');
+
+        if (!token && !existingSettings.notionToken) {
+          showResult(el, 'Notion Tokenを入力してください', 'error');
+          return;
+        }
+        if (!parentId) {
+          showResult(el, '親ページIDを入力してください', 'error');
+          return;
+        }
+
+        showResult(el, 'データベース作成中...', 'loading');
+        document.getElementById('btnCreateDb').disabled = true;
+        google.script.run
+          .withSuccessHandler(function(r) {
+            document.getElementById('btnCreateDb').disabled = false;
+            if (r.success) {
+              showResult(el, r.message, 'success');
+              createdDbId = r.databaseId;
+              alert('データベースを作成しました！\n\nDB ID: ' + r.databaseId + '\n\nNotionで確認してください。');
+            } else {
+              showResult(el, r.message, 'error');
+            }
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('btnCreateDb').disabled = false;
+            showResult(el, 'Error: ' + err.message, 'error');
+          })
+          .createDatabaseFromWizard(token, parentId);
       }
 
       function showResult(el, msg, type) {
@@ -463,12 +655,16 @@
 
       function validateStep(step) {
         if (step === 1) {
-          if (!document.getElementById('notionToken').value.trim()) { alert('Notion Integration Token を入力してください。'); return false; }
+          var hasToken = document.getElementById('notionToken').value.trim() ||
+                         (existingSettings.setupComplete && existingSettings.notionToken);
+          if (!hasToken) { alert('Notion Integration Token を入力してください。'); return false; }
           if (dbMode === 'existing' && !document.getElementById('notionDatabaseId').value.trim()) { alert('Database ID を入力してください。'); return false; }
           if (dbMode === 'auto' && !document.getElementById('notionParentPageId').value.trim()) { alert('親ページID を入力してください。'); return false; }
         }
         if (step === 2) {
-          if (!document.getElementById('lineChannelSecret').value.trim()) { alert('LINE Channel Secret を入力してください。'); return false; }
+          var hasSecret = document.getElementById('lineChannelSecret').value.trim() ||
+                          (existingSettings.setupComplete && existingSettings.lineChannelSecret);
+          if (!hasSecret) { alert('LINE Channel Secret を入力してください。'); return false; }
         }
         if (step === 3) {
           if (!document.getElementById('titlePropName').value.trim()) { alert('タイトルプロパティ名を入力してください。'); return false; }
@@ -508,13 +704,25 @@
 
       function updateSummary() {
         var token = document.getElementById('notionToken').value.trim();
-        document.getElementById('sumToken').textContent = '****' + token.slice(-4);
+        if (token) {
+          document.getElementById('sumToken').textContent = '****' + token.slice(-4);
+        } else if (existingSettings.notionToken) {
+          document.getElementById('sumToken').textContent = existingSettings.notionToken + ' (変更なし)';
+        }
         document.getElementById('sumDbMode').textContent = dbMode === 'existing' ? '既存DB' : '自動作成';
-        document.getElementById('sumDbId').textContent = dbMode === 'existing'
-          ? document.getElementById('notionDatabaseId').value.trim()
-          : document.getElementById('notionParentPageId').value.trim();
+        if (dbMode === 'existing') {
+          document.getElementById('sumDbId').textContent = document.getElementById('notionDatabaseId').value.trim();
+        } else if (createdDbId) {
+          document.getElementById('sumDbId').textContent = createdDbId + ' (作成済み)';
+        } else {
+          document.getElementById('sumDbId').textContent = document.getElementById('notionParentPageId').value.trim() + ' (親ページ)';
+        }
         var secret = document.getElementById('lineChannelSecret').value.trim();
-        document.getElementById('sumLineSecret').textContent = '****' + secret.slice(-4);
+        if (secret) {
+          document.getElementById('sumLineSecret').textContent = '****' + secret.slice(-4);
+        } else if (existingSettings.lineChannelSecret) {
+          document.getElementById('sumLineSecret').textContent = existingSettings.lineChannelSecret + ' (変更なし)';
+        }
         document.getElementById('sumTitleProp').textContent = document.getElementById('titlePropName').value.trim();
       }
 
@@ -540,6 +748,10 @@
           settings.notionDatabaseId = document.getElementById('notionDatabaseId').value.trim();
         } else {
           settings.notionParentPageId = document.getElementById('notionParentPageId').value.trim();
+          // DB作成テストで作成済みのDBがあればそのIDも保存
+          if (createdDbId) {
+            settings.notionDatabaseId = createdDbId;
+          }
         }
 
         google.script.run
