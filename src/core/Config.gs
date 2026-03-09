@@ -67,6 +67,33 @@ const PROP_KEYS = {
 };
 
 // ========================================
+// Notion ID 正規化
+// ========================================
+
+/**
+ * Notion ID をUUID形式（8-4-4-4-12）に正規化する
+ * ハイフンなし32文字、ハイフン付き36文字、どちらも受け付ける
+ * @param {string} id - Notion ID（32文字 or UUID形式）
+ * @return {string} UUID形式のID。不正な場合はそのまま返す
+ */
+function normalizeNotionId(id) {
+  if (!id) return '';
+  // 前後の空白を除去
+  id = id.trim();
+  // 既にハイフン付きUUID形式の場合はそのまま返す
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return id;
+  }
+  // ハイフンなし32文字の場合、UUID形式に変換
+  var hex = id.replace(/-/g, '');
+  if (/^[0-9a-f]{32}$/i.test(hex)) {
+    return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+  }
+  // それ以外はそのまま返す（APIがエラーを返す）
+  return id;
+}
+
+// ========================================
 // プロパティ取得ヘルパー
 // ========================================
 

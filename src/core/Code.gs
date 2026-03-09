@@ -186,12 +186,12 @@ function saveInitialSetup(settings) {
       props.setProperty(PROP_KEYS.LINE_CHANNEL_SECRET, settings.lineChannelSecret);
     }
 
-    // Notion DB設定
+    // Notion DB設定（IDをUUID形式に正規化して保存）
     if (settings.notionDatabaseId) {
-      props.setProperty(PROP_KEYS.NOTION_DATABASE_ID, settings.notionDatabaseId);
+      props.setProperty(PROP_KEYS.NOTION_DATABASE_ID, normalizeNotionId(settings.notionDatabaseId));
     }
     if (settings.notionParentPageId) {
-      props.setProperty(PROP_KEYS.NOTION_PARENT_PAGE_ID, settings.notionParentPageId);
+      props.setProperty(PROP_KEYS.NOTION_PARENT_PAGE_ID, normalizeNotionId(settings.notionParentPageId));
     }
 
     // LINE Access Token（任意）
@@ -267,7 +267,7 @@ function testNotionConnection(token, databaseId) {
     setProperty(PROP_KEYS.NOTION_TOKEN, token);
 
     if (databaseId) {
-      var result = notionGetDatabase(databaseId);
+      var result = notionGetDatabase(normalizeNotionId(databaseId));
       // トークンを元に戻す
       if (originalToken) {
         setProperty(PROP_KEYS.NOTION_TOKEN, originalToken);
@@ -310,6 +310,121 @@ function resetAllSettings() {
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error: error.toString() };
+  }
+}
+
+// ========================================
+// データベース接続テスト・作成
+// ========================================
+
+/**
+ * データベース接続テスト（ウィザードから呼び出される）
+ * 既存DBへの接続を検証する
+ * @param {string} token - Notionトークン（空なら保存済みを使用）
+ * @param {string} databaseId - データベースID
+ * @return {Object} { success, message, dbTitle }
+ */
+function testDatabaseConnection(token, databaseId) {
+  try {
+    var originalToken = getProperty(PROP_KEYS.NOTION_TOKEN);
+    if (token) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, token);
+    }
+
+    var normalizedId = normalizeNotionId(databaseId);
+    var result = notionGetDatabase(normalizedId);
+
+    // トークンを元に戻す
+    if (token && originalToken) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, originalToken);
+    }
+
+    if (result.success) {
+      var dbTitle = '';
+      if (result.data.title && result.data.title.length > 0) {
+        dbTitle = result.data.title[0].plain_text || '';
+      }
+      return { success: true, message: 'データベース接続成功: 「' + dbTitle + '」', dbTitle: dbTitle };
+    } else {
+      return { success: false, message: 'データベース接続失敗: ' + result.error, dbTitle: '' };
+    }
+  } catch (error) {
+    return { success: false, message: 'テスト失敗: ' + error, dbTitle: '' };
+  }
+}
+
+/**
+ * 親ページへの接続テスト（ウィザードから呼び出される）
+ * 親ページにアクセスできるか検証する
+ * @param {string} token - Notionトークン
+ * @param {string} parentPageId - 親ページID
+ * @return {Object} { success, message }
+ */
+function testParentPageConnection(token, parentPageId) {
+  try {
+    var originalToken = getProperty(PROP_KEYS.NOTION_TOKEN);
+    if (token) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, token);
+    }
+
+    var normalizedId = normalizeNotionId(parentPageId);
+    var result = notionRequest('/pages/' + normalizedId, 'get');
+
+    if (token && originalToken) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, originalToken);
+    }
+
+    if (result.success) {
+      var pageTitle = '';
+      var props = result.data.properties || {};
+      for (var key in props) {
+        if (props[key].type === 'title' && props[key].title && props[key].title.length > 0) {
+          pageTitle = props[key].title[0].plain_text || '';
+          break;
+        }
+      }
+      return { success: true, message: '親ページ接続成功' + (pageTitle ? ': 「' + pageTitle + '」' : '') };
+    } else {
+      return { success: false, message: '親ページ接続失敗: ' + result.error };
+    }
+  } catch (error) {
+    return { success: false, message: 'テスト失敗: ' + error };
+  }
+}
+
+/**
+ * ウィザードからDB自動作成を実行（結果をUIに返す）
+ * @param {string} token - Notionトークン
+ * @param {string} parentPageId - 親ページID
+ * @return {Object} { success, message, databaseId }
+ */
+function createDatabaseFromWizard(token, parentPageId) {
+  try {
+    // トークンと親ページIDを一時的にセット
+    var originalToken = getProperty(PROP_KEYS.NOTION_TOKEN);
+    if (token) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, token);
+    }
+    setProperty(PROP_KEYS.NOTION_PARENT_PAGE_ID, normalizeNotionId(parentPageId));
+
+    var result = createInboxDatabase();
+
+    // トークンを元に戻す（まだ最終保存前）
+    if (token && originalToken) {
+      setProperty(PROP_KEYS.NOTION_TOKEN, originalToken);
+    }
+
+    if (result.success) {
+      return {
+        success: true,
+        message: 'データベースを作成しました！ ID: ' + result.databaseId,
+        databaseId: result.databaseId
+      };
+    } else {
+      return { success: false, message: 'データベース作成失敗: ' + result.error, databaseId: '' };
+    }
+  } catch (error) {
+    return { success: false, message: 'エラー: ' + error, databaseId: '' };
   }
 }
 

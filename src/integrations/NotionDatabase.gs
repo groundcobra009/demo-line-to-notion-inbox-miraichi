@@ -69,7 +69,7 @@ function checkOptionalProperties(dbProperties) {
  * @return {Object} { success, databaseId, error }
  */
 function createInboxDatabase() {
-  var parentPageId = getProperty(PROP_KEYS.NOTION_PARENT_PAGE_ID);
+  var parentPageId = normalizeNotionId(getProperty(PROP_KEYS.NOTION_PARENT_PAGE_ID));
   if (!parentPageId) {
     return { success: false, databaseId: '', error: 'NOTION_PARENT_PAGE_ID が未設定です' };
   }
